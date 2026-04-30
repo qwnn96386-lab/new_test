@@ -17,19 +17,46 @@ jobs:
           flutter-version: '3.19.0'
           channel: 'stable'
 
-      - name: Fix Environment
+      - name: Rebuild iOS Environment
         run: |
-          # 1. 徹底移除 Android 確保純淨
+          # 1. 徹底清除舊環境
           rm -rf android
+          rm -rf ios
+          flutter clean
           
-          # 2. 獲取套件
+          # 2. 重新產生 iOS 專案 (這會生成正確的 Podfile 結構)
+          flutter create --platforms ios .
           flutter pub get
           
-          # 3. 預下載 iOS 相關檔案
-          flutter precache --ios
+          # 3. 注入地理圍欄權限到新的 Podfile (用 Ruby 腳本直接替換)
+          # 這一步確保編譯時會開啟定位、背景、通知與感測器代碼
+          cat <<EOF > ios/Podfile
+          platform :ios, '14.0'
+          require_relative '../.flutter-plugins-dependencies'
+          target 'Runner' do
+            use_frameworks!
+            use_modular_headers!
+            flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+          end
+          post_install do |installer|
+            installer.pods_project.targets.each do |target|
+              flutter_additional_ios_build_settings(target)
+              target.build_configurations.each do |config|
+                config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
+                  '\$(inherited)',
+                  'PERMISSION_LOCATION=1',
+                  'PERMISSION_BACKGROUND_LOCATION=1',
+                  'PERMISSION_NOTIFICATIONS=1',
+                  'PERMISSION_SENSORS=1'
+                ]
+              end
+            end
+          end
+          EOF
           
-          # 4. 關鍵修正：建立一個空的檔案，防止 Podfile 的 require_relative 報錯
+          # 4. 建立空的依賴檔以滿足舊版腳本需求 (防止報錯關鍵)
           touch .flutter-plugins-dependencies
+          echo "[]" > .flutter-plugins-dependencies
 
       - name: Build iOS for Real Device (No Codesign)
         run: |
