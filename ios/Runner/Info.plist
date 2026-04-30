@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDisplayName</key>
+    <string>店家雷達</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleName</key>
+    <string>shop_radar_assistant</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>$(FLUTTER_BUILD_NAME)</string>
+    <key>CFBundleVersion</key>
+    <string>$(FLUTTER_BUILD_NUMBER)</string>
+
+    <!-- 1. 定位權限：地理圍欄的核心 -->
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>我們需要您的定位權限來偵測周邊店家。</string>
+    <key>NSLocationAlwaysUsageDescription</key>
+    <string>為了在您抵達店家時能自動發送通知，我們需要背景定位權限。</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>為了在您抵達店家時能自動發送通知，我們需要背景定位權限。</string>
+    
+    <!-- 2. 運動偵測：用於優化電力，判斷使用者是否在移動 -->
+    <key>NSMotionUsageDescription</key>
+    <string>使用運動感應器能顯著降低背景定位時的電力消耗。</string>
+
+    <!-- 3. 背景運行模式：確保 App 在背景能接收定位更新 -->
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>location</string>
+        <string>fetch</string>
+        <string>processing</string>
+    </array>
+
+    <!-- 4. 註冊背景任務 ID -->
+    <key>BGTaskSchedulerPermittedIdentifiers</key>
+    <array>
+        <string>$(PRODUCT_BUNDLE_IDENTIFIER).location_update</string>
+    </array>
+
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>UILaunchStoryboardName</key>
+    <string>LaunchScreen</string>
+    <key>UIMainStoryboardFile</key>
+    <string>Main</string>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+    </array>
+    <key>CADisableMinimumFrameDurationOnPhone</key>
+    <true/>
+    <key>UIApplicationSupportsIndirectInputEvents</key>
+    <true/>
+</dict>
+</plist>

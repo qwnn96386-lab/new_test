@@ -1,0 +1,30 @@
+# 1. 指定 iOS 最低版本 (建議 14.0 以支援更穩定的地理圍欄)
+platform :ios, '14.0'
+
+# Flutter 內部腳本路徑
+require_relative '../.flutter-plugins-dependencies'
+
+# 確保輸出不顯示大量警告
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+    
+    # --- 以下是針對權限的核心設定 ---
+    target.build_configurations.each do |config|
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
+        '$(inherited)',
+        # 地理圍欄 & 定位
+        'PERMISSION_LOCATION=1',
+        # 背景定位
+        'PERMISSION_BACKGROUND_LOCATION=1',
+        # 通知
+        'PERMISSION_NOTIFICATIONS=1',
+        # 運動感應 (用於 geofence_service 的省電模式)
+        'PERMISSION_SENSORS=1'
+      ]
+      
+      # 確保所有 Pods 的部署目標一致，避免編譯警告
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+    end
+  end
+end
