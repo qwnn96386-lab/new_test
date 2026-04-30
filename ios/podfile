@@ -1,53 +1,34 @@
-name: iOS_IPA_Build
+# 1. 指定 iOS 最低版本
+platform :ios, '14.0'
 
-on:
-  push:
-    branches: [ main, master ]
+# Flutter 內部腳本路徑
+require_relative '../.flutter-plugins-dependencies'
 
-jobs:
-  build:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+# --- 修正：必須加入 Target 區塊 ---
+target 'Runner' do
+  use_frameworks!
+  use_modular_headers!
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.19.0'
-          channel: 'stable'
+  # 這是讓 Flutter 插件（如地理圍欄）生效的關鍵
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+end
 
-      - name: Prepare iOS Environment
-        run: |
-          # 1. 刪除 Android
-          rm -rf android
-          
-          # 2. 取得插件
-          flutter pub get
-          
-          # 3. 【解決路徑報錯關鍵】
-          # 因為你的 Podfile 裡有 require_relative '../.flutter-plugins-dependencies'
-          # 我們必須確保這個檔案在雲端真的存在
-          touch .flutter-plugins-dependencies
-          echo '{"plugins":{"ios":[]}}' > .flutter-plugins-dependencies
-          
-          # 4. 下載 iOS 依賴檔
-          flutter precache --ios
-
-      - name: Build iOS IPA
-        run: |
-          # 執行編譯，現在 Podfile 結構完整了，不會再噴 No dependencies
-          flutter build ios --release --no-codesign
-
-      - name: Package into IPA
-        run: |
-          mkdir -p build/ios/iphoneos/Payload
-          cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
-          cd build/ios/iphoneos
-          zip -r radar_assistant.ipa Payload
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-radar-ipa
-          path: build/ios/iphoneos/radar_assistant.ipa
+# 確保輸出不顯示大量警告
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+    
+    # --- 這是你要求的權限設定 (保留) ---
+    target.build_configurations.each do |config|
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
+        '$(inherited)',
+        'PERMISSION_LOCATION=1',
+        'PERMISSION_BACKGROUND_LOCATION=1',
+        'PERMISSION_NOTIFICATIONS=1',
+        'PERMISSION_SENSORS=1'
+      ]
+      
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+    end
+  end
+end
