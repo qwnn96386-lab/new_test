@@ -19,23 +19,21 @@ jobs:
 
       - name: Fix Environment
         run: |
-          # 1. 徹底移除 Android
+          # 1. 徹底移除 Android 確保純淨
           rm -rf android
           
-          # 2. 獲取套件 (這會生成依賴描述檔)
+          # 2. 獲取套件
           flutter pub get
           
           # 3. 預下載 iOS 相關檔案
           flutter precache --ios
           
-          # 4. 強制重新產生 iOS 專案結構（確保 Podfile 與 Flutter 同步）
-          # 這一步會自動解決 .flutter-plugins-dependencies 缺失的問題
-          flutter create --platforms ios .
+          # 4. 關鍵修正：建立一個空的檔案，防止 Podfile 的 require_relative 報錯
+          touch .flutter-plugins-dependencies
 
       - name: Build iOS for Real Device (No Codesign)
         run: |
-          # 直接使用 flutter build，它會自動處理 pod install
-          # 這樣就不會遇到手動 cd ios && pod install 的路徑錯誤
+          # 執行編譯，Flutter 會自動處理 CocoaPods
           flutter build ios --release --no-codesign
 
       - name: Package into IPA (For Sideloadly)
