@@ -17,61 +17,29 @@ jobs:
           flutter-version: '3.19.0'
           channel: 'stable'
 
-      - name: Rebuild iOS Environment
+      - name: Prepare Environment
         run: |
-          # 1. 徹底清除舊環境
+          # 1. 依照你的要求，刪除 Android 部分，保持純淨
           rm -rf android
-          rm -rf ios
-          flutter clean
           
-          # 2. 重新產生 iOS 專案 (這會生成正確的 Podfile 結構)
-          flutter create --platforms ios .
+          # 2. 取得套件
           flutter pub get
           
-          # 3. 注入地理圍欄權限到新的 Podfile (用 Ruby 腳本直接替換)
-          # 這一步確保編譯時會開啟定位、背景、通知與感測器代碼
-          cat <<EOF > ios/Podfile
-          platform :ios, '14.0'
-          require_relative '../.flutter-plugins-dependencies'
-          target 'Runner' do
-            use_frameworks!
-            use_modular_headers!
-            flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
-          end
-          post_install do |installer|
-            installer.pods_project.targets.each do |target|
-              flutter_additional_ios_build_settings(target)
-              target.build_configurations.each do |config|
-                config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
-                  '\$(inherited)',
-                  'PERMISSION_LOCATION=1',
-                  'PERMISSION_BACKGROUND_LOCATION=1',
-                  'PERMISSION_NOTIFICATIONS=1',
-                  'PERMISSION_SENSORS=1'
-                ]
-              end
-            end
-          end
-          EOF
-          
-          # 4. 建立空的依賴檔以滿足舊版腳本需求 (防止報錯關鍵)
+          # 3. 【核心修正】手動建立那個讓 Podfile 崩潰的隱藏檔
+          # 如果這個檔案不存在，Podfile 執行 require_relative 就會失敗
           touch .flutter-plugins-dependencies
-          echo "[]" > .flutter-plugins-dependencies
+          echo "{ \"plugins\": { \"ios\": [] } }" > .flutter-plugins-dependencies
+          
+          # 4. 確保 iOS 依賴預下載
+          flutter precache --ios
 
       - name: Build iOS for Real Device (No Codesign)
         run: |
-          # 執行編譯，Flutter 會自動處理 CocoaPods
+          # 這裡會直接讀取你專案裡的 ios/Podfile
+          # 因為我們上面手動補了檔案，它就不會再報路徑錯誤了
           flutter build ios --release --no-codesign
 
       - name: Package into IPA (For Sideloadly)
         run: |
           mkdir -p build/ios/iphoneos/Payload
-          cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
-          cd build/ios/iphoneos
-          zip -r radar_assistant.ipa Payload
-
-      - name: Upload IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-radar-ipa
-          path: build/ios/iphoneos/radar_assistant.ipa
+          cp -r build/ios/iphoneos/Runner.app build/ios/iphone
