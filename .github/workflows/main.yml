@@ -17,28 +17,63 @@ jobs:
           flutter-version: '3.19.0'
           channel: 'stable'
 
-      - name: Fix Podfile Path Error
+      - name: Rebuild Fresh iOS Environment
         run: |
-          # 1. 刪除 Android 資料夾，確保環境純淨
-          rm -rf android
+          # 1. 刪除可能有問題的舊資料夾
+          rm -rf android ios
+          flutter clean
           
-          # 2. 取得套件
+          # 2. 重新產生標準的 iOS 專案結構 (這會解決 Workspace 找不到的問題)
+          flutter create --platforms ios .
           flutter pub get
           
-          # 3. 【核心修正】直接把你 Podfile 裡第 5 行那行報錯的指令刪除
-          # 這樣 pod install 就不會因為找不到檔案而中斷
-          sed -i '' '/.flutter-plugins-dependencies/d' ios/Podfile
-          
-          # 4. 預下載 iOS 依賴
-          flutter precache --ios
+          # 3. 注入地理圍欄權限到 Podfile
+          # 我們直接替換成一個標準且帶有權限定義的 Podfile
+          cat <<EOF > ios/Podfile
+          platform :ios, '14.0'
+          require_relative '../.flutter-plugins-dependencies'
+          target 'Runner' do
+            use_frameworks!
+            use_modular_headers!
+            flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+          end
+          post_install do |installer|
+            installer.pods_project.targets.each do |target|
+              flutter_additional_ios_build_settings(target)
+              target.build_configurations.each do |config|
+                config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
+                  '\$(inherited)',
+                  'PERMISSION_LOCATION=1',
+                  'PERMISSION_BACKGROUND_LOCATION=1',
+                  'PERMISSION_NOTIFICATIONS=1',
+                  'PERMISSION_SENSORS=1'
+                ]
+              end
+            end
+          end
+          EOF
+
+          # 4. 注入地理圍欄描述到 Info.plist (防止 App 啟動閃退)
+          PLIST="ios/Runner/Info.plist"
+          sed -i '' '/<dict>/a \
+          <key>NSLocationWhenInUseUsageDescription</key><string>需要定位以偵測店家</string>\
+          <key>NSLocationAlwaysUsageDescription</key><string>需要背景定位以自動觸發雷達</string>\
+          <key>NSLocationAlwaysAndWhenInUseUsageDescription</key><string>需要背景定位以自動觸發雷達</string>\
+          <key>NSMotionUsageDescription</key><string>使用運動感應器以節省電力</string>\
+          <key>UIBackgroundModes</key><array><string>location</string><string>fetch</string></array>' \$PLIST
+
+          # 5. 再次修正隱藏依賴檔 (確保 pod install 能過)
+          touch .flutter-plugins-dependencies
+          echo '{"plugins":{"ios":[]}}' > .flutter-plugins-dependencies
 
       - name: Build iOS for Real Device (No Codesign)
         run: |
-          # 執行編譯，現在 Podfile 已經被我們修正，不會再噴路徑錯誤了
+          # 執行編譯，這一步現在會自動跑 pod install
           flutter build ios --release --no-codesign
 
       - name: Package into IPA (For Sideloadly)
         run: |
+          # 建立 Payload 資料夾結構並打包
           mkdir -p build/ios/iphoneos/Payload
           cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
           cd build/ios/iphoneos
