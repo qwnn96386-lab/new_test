@@ -22,21 +22,19 @@ jobs:
           # 1. 刪除 Android
           rm -rf android
           
-          # 2. 取得插件
+          # 2. 取得套件
           flutter pub get
           
-          # 3. 【解決路徑報錯關鍵】
-          # 因為你的 Podfile 裡有 require_relative '../.flutter-plugins-dependencies'
-          # 我們必須確保這個檔案在雲端真的存在
-          touch .flutter-plugins-dependencies
-          echo '{"plugins":{"ios":[]}}' > .flutter-plugins-dependencies
+          # 3. 【核心修正】直接用 sed 註解掉 Podfile 裡那行會報錯的 require_relative
+          # 這行是解決 Invalid Podfile file: cannot load such file 的終極手段
+          sed -i '' "s/require_relative '..\/\.flutter-plugins-dependencies'/# require_relative '..\/\.flutter-plugins-dependencies'/g" ios/Podfile
           
-          # 4. 下載 iOS 依賴檔
+          # 4. 預下載 iOS 依賴
           flutter precache --ios
 
       - name: Build iOS IPA
         run: |
-          # 執行編譯，現在 Podfile 結構完整了，不會再噴 No dependencies
+          # 執行編譯，現在 Podfile 已經被修正且結構完整
           flutter build ios --release --no-codesign
 
       - name: Package into IPA
