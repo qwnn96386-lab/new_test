@@ -1,15 +1,15 @@
 # 1. 指定 iOS 最低版本
 platform :ios, '14.0'
 
-# Flutter 內部腳本路徑
+# Flutter 內部腳本路徑 (這行在 CI 環境常報錯，我們會用腳本處理它)
 require_relative '../.flutter-plugins-dependencies'
 
-# --- 修正：必須加入 Target 區塊 ---
+# --- 必須有 target 區塊，否則會報 No dependencies 錯誤 ---
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
-  # 這是讓 Flutter 插件（如地理圍欄）生效的關鍵
+  # 讓 Flutter 插件生效
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
 
@@ -18,7 +18,7 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     
-    # --- 這是你要求的權限設定 (保留) ---
+    # --- 你的地理圍欄核心設定 ---
     target.build_configurations.each do |config|
       config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
         '$(inherited)',
