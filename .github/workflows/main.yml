@@ -1,56 +1,51 @@
 name: iOS_IPA_Build
+
 on:
-push:
-branches: [ main, master ]
+  push:
+    branches: [ main, master ]
+
 jobs:
-build:
-runs-on: macos-latest
-steps:
-- name: Checkout code
-uses: actions/checkout@v4
-code
-Code
-- name: Setup Flutter
-    uses: subosito/flutter-action@v2
-    with:
-      flutter-version: '3.19.0'
-      channel: 'stable'
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-  - name: Fix Environment
-    run: |
-      rm -rf android
-      rm -f ios/Flutter/*.xcconfig
-      rm -f ios/Flutter/flutter_export_environment.sh
-      # 建立最簡 SceneDelegate 確保 Xcode 找到檔案
-      mkdir -p ios/Runner
-      cat <<EOF > ios/Runner/SceneDelegate.swift
-      import UIKit
-      import Flutter
-      class SceneDelegate: UIResponder, UIWindowSceneDelegate { var window: UIWindow? }
-      EOF
-      flutter create --platforms ios .
-      flutter pub get
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+          channel: 'stable'
 
-  - name: Build iOS for Real Device (No Codesign)
-    run: |
-      cd ios
-      pod repo update
-      pod install
-      cd ..
-      # 關鍵：編譯實機 release 版，不檢查簽名
-      flutter build ios --release --no-codesign
+      - name: Fix Environment
+        run: |
+          rm -rf android
+          # 建立最簡 SceneDelegate 確保 Xcode 找到檔案
+          mkdir -p ios/Runner
+          cat <<EOF > ios/Runner/SceneDelegate.swift
+          import UIKit
+          import Flutter
+          class SceneDelegate: UIResponder, UIWindowSceneDelegate { var window: UIWindow? }
+          EOF
+          flutter create --platforms ios .
+          flutter pub get
 
-  - name: Package into IPA (For Sideloadly)
-    run: |
-      # Sideloadly 需要 Payload 資料夾結構
-      mkdir -p build/ios/iphoneos/Payload
-      cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
-      cd build/ios/iphoneos
-      # 打包成 .ipa
-      zip -r radar_assistant.ipa Payload
+      - name: Build iOS for Real Device (No Codesign)
+        run: |
+          cd ios
+          pod install
+          cd ..
+          flutter build ios --release --no-codesign
 
-  - name: Upload IPA
-    uses: actions/upload-artifact@v4
-    with:
-      name: ios-radar-ipa
-      path: build/ios/iphoneos/radar_assistant.ipa
+      - name: Package into IPA (For Sideloadly)
+        run: |
+          mkdir -p build/ios/iphoneos/Payload
+          cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
+          cd build/ios/iphoneos
+          zip -r radar_assistant.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-radar-ipa
+          path: build/ios/iphoneos/radar_assistant.ipa
